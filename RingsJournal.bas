@@ -1,4 +1,7 @@
-Dim PerfCounter As New PerformanceCounter
+Public PerfCounter As New PerformanceCounter
+Public HotpathCounter As New PerformanceCounter
+
+
 
 
 Function IsStringBetweenRows(StartRow As Integer, EndRow As Integer, ColNo As Integer, FindString As String) As Boolean
@@ -14,20 +17,72 @@ Function IsContainedInArray(l As Integer, Arr As Variant) As Boolean
     IsContainedInArray = UBound(Filter(Arr, l)) > -1
 End Function
 
+Function pprintMS(ByRef milliseconds As Double) As String
+    pprintMS = Format(milliseconds / 1000, "#0.00")
+End Function
+
+
+
 Function DBG_ElapsedTime(Optional additionalMessage As String = "")
     If Len(additionalMessage) > 0 Then
         Debug.Print (additionalMessage)
     End If
-    Debug.Print ("Elapsed Time: " & Format(PerfCounter.TimeElapsed / 1000, "#.00") & " seconds" + vbCrLf)
+    Debug.Print ("Elapsed Time: " & (pprintMS(PerfCounter.TimeElapsed)) & " seconds" + vbCrLf)
     PerfCounter.StartCounter
 End Function
 
 
-Sub a_Test()
-    PerfCounter.StartCounter
-    MsgBox ("This is a test")
-    DBG_ElapsedTime "PerfCounterTest"
+'Returns index of last item in arr less than x. Assumes array is sorted.
+Function lastItemLessThanX(ByRef arr() As Integer, x As Integer) As Integer
+    idx = -1
+    For Each a In arr
+        If a < x Then
+            idx = idx + 1
+        Else
+            Exit For
+        End If
+    Next
+    lastItemLessThanX = idx
+End Function
+
+
+'Remove every sheet but the first
+Function deleteExtraSheets()
+    Application.DisplayAlerts = False
+    Do While Worksheets.Count > 1
+        Worksheets(2).Delete
+    Loop
+    Application.DisplayAlerts = True
+End Function
+
+Sub xxx_Test()
+    Dim arr_test(10) As Integer
+    For i = 0 To 9
+        arr_test(i) = i
+    Next
+    Debug.Print ("Last item less than 5 - " & (lastItemLessThanX(arr_test, 5)))
 End Sub
+
+Function enterPerfMode()
+    Application.ScreenUpdating = False     'Faster
+    Application.DisplayStatusBar = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    ActiveSheet.DisplayPageBreaks = False 'note this is a sheet-level setting
+End Function
+
+Function exitPerfMode()
+    Application.ScreenUpdating = True
+    Application.DisplayStatusBar = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    ActiveSheet.DisplayPageBreaks = True 'note this is a sheet-level setting
+End Function
+
+
+
+
+
 
 
 
@@ -38,22 +93,15 @@ Sub RingsJournalSort()
 
     PerfCounter.StartCounter
 
-    'Remove every sheet but the first
-    Application.DisplayAlerts = False
-    Do While Worksheets.Count > 1
-        Worksheets(2).Delete
-    Loop
-    Application.DisplayAlerts = True
+    Call deleteExtraSheets
+    Call enterPerfMode
 
-
-    Application.ScreenUpdating = False     'Faster
-
-    
     ' Allocate variables
+    Dim SheetLength() As Integer
     Dim OrigSheet, JournalSheet1, JournalSheet2 As Worksheet
     Dim TempStr, TempDate, TempJnl() As String
     Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, currentCol, b, c, d, numClientCodes1, j, k, m, n, newCode As Integer
-    
+
     
     'opening, naming and setting worksheets to variables in case sheets are moved or named etc
     Set OrigSheet = Sheets(1)
@@ -125,6 +173,8 @@ Sub RingsJournalSort()
     Loop
     
     DBG_ElapsedTime "Searched for journal entry numbers"
+    Debug.Print ("Found numJournals1: " & numJournals1)
+    Debug.Print ("Found numJournals2: " & numJournals2)
     
     
     c = 1
@@ -248,6 +298,8 @@ Sub RingsJournalSort()
     Dim Code() As Variant
     Dim FindOutArray() As String
     
+
+    ' TODO: Combine these loops into one by merging the array of codes first
     '----Create a new tab for each client account code from Sheet 2
     'Loop to find the size of the array required
     numClientCodes1 = 0
@@ -266,8 +318,9 @@ Sub RingsJournalSort()
             If IsContainedInArray(newCode, Code) = False Then
                 Code(d) = newCode
                 With ThisWorkbook
-                Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
-                Sh.Name = newCode
+                    Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
+                    Sh.Name = newCode
+                    Sh.DisplayPageBreaks = False ' For performance
                 End With
                 d = d + 1
             End If
@@ -293,8 +346,9 @@ Sub RingsJournalSort()
             If IsContainedInArray(newCode, Code) = False Then
                 Code(d) = newCode
                 With ThisWorkbook
-                Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
-                Sh.Name = newCode
+                    Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
+                    Sh.Name = newCode
+                    Sh.DisplayPageBreaks = False ' For performance
                 End With
                 d = d + 1
             End If
@@ -307,9 +361,9 @@ Sub RingsJournalSort()
     '----Next Code to fill, format and tidy these tabs from JnlList1 and JnlList2
     '----The following is extracting from *JnlList1* 1)ClientCodes 2)Transactions 3)Jnl No.s
     
-    Dim JnlRow() As Variant
+    Dim JnlRow() As Integer
     Dim CodeRow(), CodeRow2(), u, LastRow As Integer
-    Dim ShName
+    Dim ShName As Integer
     ReDim CodeRow(numClientCodes1)
     
     d = 0
@@ -323,7 +377,6 @@ Sub RingsJournalSort()
     Next
     
     'the Array v is for referencing to the sheets in this workbook
-    Dim SheetLength() As Integer
     ReDim SheetLength(ThisWorkbook.Sheets.Count)
     
     j = 1
@@ -337,12 +390,15 @@ Sub RingsJournalSort()
     Next b
     
     DBG_ElapsedTime "Cleaned Client Code Sheets"
+    Dim Hotpaths(3) As Double
+    Hotpaths(0) = 0#
+    Hotpaths(1) = 0#
+    Hotpaths(2) = 0#
     
-    'Cycle through the worksheets, match the sheet names to client codes, copy over the appropriate code rows and Journal No rows
-    
+    'Search the list of Type 1 Journals for client codes.
     For k = 4 To ThisWorkbook.Sheets.Count
-        
         ShName = CInt(Sheets(k).Name)
+        ' DBG_ElapsedTime "Matching Journal1 to Sheet " & ShName
         SheetLength(k) = 1 'Array in order to retain last row printed on for each sheet
         
         'loop through the array holding the row numbers of the rows with the client codes
@@ -350,38 +406,40 @@ Sub RingsJournalSort()
 
             'Check if the Client Code in a Row is equal to the current sheet looped onto
             If JournalSheet1.Cells(CodeRow(b), currentCol) = ShName Then
-        
-                'this deals with the final CodeRow(b+1) being outside of the array
+                
+                HotpathCounter.StartCounter
+                ' Find the distance between the last row in the current set of transactions to the beginning of the next set
                 If b = UBound(CodeRow) Then
                     With JournalSheet1
                         LastRow = .Cells(.Rows.Count, 5).End(xlUp).Row
                     End With
-                    'this finds the distance between the last row and the last code row to measure the amount of rows with transactions
                     'add 1 for the row with the total -- this is in order to correctly place the total of the totals
                     u = 1 + LastRow - CodeRow(UBound(CodeRow))
                 Else
                     u = CInt(CodeRow(b + 1)) - CInt(CodeRow(b))
                 End If
-                'This loop finds the row containing journal above a client code and copies it
-                'pasting to the sheet with the same name, ignoring  journals after the code
-                'and pastes them over each other until the last one which is just before the code
-                For j = 1 To UBound(JnlRow)
-                        If JnlRow(j) < CodeRow(b) Then
-                            JournalSheet1.Rows(JnlRow(j)).Copy
-                            Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
-                        End If
-                Next j
+                Hotpaths(0) = Hotpaths(0) + HotpathCounter.TimeElapsed
+
+                HotpathCounter.StartCounter
+
+                'Copy the journal entry found closest directly above this client code
+                Dim idx As Integer
+                idx = lastItemLessThanX(JnlRow, (CodeRow(b)))
+                JournalSheet1.Rows(JnlRow(idx)).Copy
+                Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
                 SheetLength(k) = SheetLength(k) + 2
+                Hotpaths(1) = Hotpaths(1) + HotpathCounter.TimeElapsed
+
+                HotpathCounter.StartCounter
                 'this copies across the Client Code row plus the rows up to the next client code
                 'this is in order to catch the transactions beneath the code row
-            
-                For j = 0 To u - 1
-                    If InStr(JournalSheet1.Cells(CodeRow(b) + j, 2), "Journal") = 0 Then
-                        JournalSheet1.Rows(CodeRow(b) + j).Copy
-                        Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
-                        SheetLength(k) = SheetLength(k) + 1
-                    End If
-                Next j
+                If CodeRow(b) + u - 1 = JnlRow(idx) Then
+                    u = u - 1
+                End If
+                JournalSheet1.Rows(CodeRow(b) & ":" & (CodeRow(b) + u - 1)).Copy
+                Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
+                SheetLength(k) = SheetLength(k) + u
+                Hotpaths(2) = Hotpaths(2) + HotpathCounter.TimeElapsed
             SheetLength(k) = SheetLength(k) + 1
             End If
         Next b
@@ -392,6 +450,7 @@ Sub RingsJournalSort()
         Next b
         
         'Putting a total of the totals moved over from Sheet 2
+        ' Could vectorize this
         SheetLength(k) = SheetLength(k) + 1
         For b = 1 To SheetLength(k) - 1
             Sheets(k).Cells(SheetLength(k), 5) = Sheets(k).Cells(SheetLength(k), 5) + Sheets(k).Cells(b, 5)
@@ -409,7 +468,12 @@ Sub RingsJournalSort()
     Next k
     
     DBG_ElapsedTime "Matched Journal 1 Client Data to Sheets"
+    For Each hp In Hotpaths
+        Debug.Print ("Hotpath: " & (pprintMS((hp))))
+    Next
     
+    PerfCounter.StartCounter
+
     '----Successful extraction and formatting to each appropriate tab from JnlList1
     '----Next Code to do same for *JnlList2*
     
@@ -514,7 +578,6 @@ Sub RingsJournalSort()
     'Loop up through the rows above until finding the cell which contains either sales or purchases ledger transfer
     'blank row above original jnlno, set it equal to the row containing Sales or Purchases Ledger Transfer
     For k = 4 To ThisWorkbook.Sheets.Count
-    'k = 4
     
         With Sheets(k)
            LastRow = .Cells(.Rows.Count, 3).End(xlUp).Row
@@ -567,26 +630,27 @@ Sub RingsJournalSort()
     Next k
     
     
-    DBG_ElapsedTime "Completed Final Reverse Lookup"
 
     'Delete Working Sheets that may not be necessary but are useful to hang onto in case they are wanted or useful
-    Application.DisplayAlerts = False
-    'Sheets(2).Delete
-    'Sheets(2).Delete
     Application.DisplayAlerts = True
-    
-    'Reactive Screen Updating
-    Application.ScreenUpdating = True
-    
+
     'For b = 1 To FinalRow
+    'call exitPerfMode
     
     'If InStr(Sheets(1).Cells(b, 1), "Purchase Ledger Transfer Report") > 0 Then Debug.Print (b)
     'If InStr(Sheets(1).Cells(b, 1), "Sales Ledger Transfer Report") > 0 Then Debug.Print (b)
     'Next b
+    exitPerfMode
     
+    DBG_ElapsedTime "Done done done"
     MsgBox ("Completed :)")
     'MsgBox (InStr(Sheets(1).Cells(671, 1), "Journal"))
 
 End Sub
+
+
+
+
+
 
 
