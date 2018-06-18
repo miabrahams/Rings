@@ -312,7 +312,7 @@ Sub RingsJournalSort()
     '----The following is extracting from *JnlList1* 1)ClientCodes 2)Transactions 3)Jnl No.s
     
     Dim JnlRow() As Variant
-    Dim CodeRow(), CodeRow2(), u, v(), w, LastRow As Integer
+    Dim CodeRow(), CodeRow2(), u, LastRow As Integer
     Dim ShName
     ReDim CodeRow(i)
     
@@ -327,8 +327,8 @@ Sub RingsJournalSort()
     Next
     
     'the Array v is for referencing to the sheets in this workbook
-    w = ThisWorkbook.Sheets.Count
-    ReDim v(w)
+    Dim SheetLength() As Integer
+    ReDim SheetLength(ThisWorkbook.Sheets.Count)
     
     j = 1
     'place row numbers for all "journal No." rows into an array
@@ -377,21 +377,21 @@ Sub RingsJournalSort()
                 For j = 1 To UBound(JnlRow)
                         If JnlRow(j) < CodeRow(b) Then
                             JournalSheet1.Rows(JnlRow(j)).Copy
-                            Sheets(k).Rows(v(k)).PasteSpecial xlPasteAll
+                            Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
                         End If
                 Next j
-                v(k) = v(k) + 2
+                SheetLength(k) = SheetLength(k) + 2
             'this copies across the Client Code row plus the rows up to the next client code
             'this is in order to catch the transactions beneath the code row
             
                 For j = 0 To u - 1
                     If InStr(JournalSheet1.Cells(CodeRow(b) + j, 2), "Journal") = 0 Then
                         JournalSheet1.Rows(CodeRow(b) + j).Copy
-                        Sheets(k).Rows(v(k)).PasteSpecial xlPasteAll
-                        v(k) = v(k) + 1
+                        Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
+                        SheetLength(k) = SheetLength(k) + 1
                     End If
                 Next j
-            v(k) = v(k) + 1
+            SheetLength(k) = SheetLength(k) + 1
             End If
         Next b
         'autofit the columns in the client code sheets
@@ -401,20 +401,20 @@ Sub RingsJournalSort()
         Next b
         
     'Putting a total of the totals moved over from Sheet 2
-        v(k) = v(k) + 1
-        For b = 1 To v(k) - 1
-            Sheets(k).Cells(v(k), 5) = Sheets(k).Cells(v(k), 5) + Sheets(k).Cells(b, 5)
+        SheetLength(k) = SheetLength(k) + 1
+        For b = 1 To SheetLength(k) - 1
+            Sheets(k).Cells(SheetLength(k), 5) = Sheets(k).Cells(SheetLength(k), 5) + Sheets(k).Cells(b, 5)
         Next b
     
     'Formatting this one cell
-        With Sheets(k).Cells(v(k), 5)
+        With Sheets(k).Cells(SheetLength(k), 5)
             .NumberFormat = "#,###;(#,###);0"
             .Font.FontStyle = "Bold"
             .Borders(xlEdgeBottom).LineStyle = xlDouble
             .Borders(xlEdgeTop).LineStyle = xlContinuous
         End With
     
-        v(k) = v(k) + 2
+        SheetLength(k) = SheetLength(k) + 2
     Next k
     
     DBG_ElapsedTime "Matched Journal 1 Client Data to Sheets"
@@ -463,32 +463,32 @@ Sub RingsJournalSort()
         'first the Row containing the Journal No.
                 If CInt(JournalSheet2.Cells(b, currentCol).Value) = ShName Then
                     JournalSheet2.Rows(CurrentJnl).Copy
-                    Sheets(k).Rows(v(k)).PasteSpecial xlPasteAll
-                    v(k) = v(k) + 2
+                    Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
+                    SheetLength(k) = SheetLength(k) + 2
                 End If
         'second paste the row containing the client code and other information
                 JournalSheet2.Rows(b).Copy
-                Sheets(k).Rows(v(k)).PasteSpecial xlPasteAll
+                Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
                 
                 'These are just to allow me to print a total at the end of sheet
-                RunningTotal = RunningTotal + Sheets(k).Cells(v(k), 3)
-                RunningTotal2 = RunningTotal2 + Sheets(k).Cells(v(k), 4)
+                RunningTotal = RunningTotal + Sheets(k).Cells(SheetLength(k), 3)
+                RunningTotal2 = RunningTotal2 + Sheets(k).Cells(SheetLength(k), 4)
     
-                v(k) = v(k) + 1
+                SheetLength(k) = SheetLength(k) + 1
             End If
         Next b
         If CheckifAnythingPasted = True Then
-            v(k) = v(k) + 1
-            Sheets(k).Cells(v(k), 3) = RunningTotal
-            Sheets(k).Cells(v(k), 4) = RunningTotal2
+            SheetLength(k) = SheetLength(k) + 1
+            Sheets(k).Cells(SheetLength(k), 3) = RunningTotal
+            Sheets(k).Cells(SheetLength(k), 4) = RunningTotal2
                         'formatting of the totals
-                With Sheets(k).Cells(v(k), 3)
+                With Sheets(k).Cells(SheetLength(k), 3)
                     .NumberFormat = "#,###;(#,###);0"
                     .Font.FontStyle = "Bold"
                     .Borders(xlEdgeBottom).LineStyle = xlDouble
                     .Borders(xlEdgeTop).LineStyle = xlContinuous
                 End With
-                With Sheets(k).Cells(v(k), 4)
+                With Sheets(k).Cells(SheetLength(k), 4)
                     .NumberFormat = "#,###;(#,###);0"
                     .Font.FontStyle = "Bold"
                     .Borders(xlEdgeBottom).LineStyle = xlDouble
@@ -506,8 +506,8 @@ Sub RingsJournalSort()
     DBG_ElapsedTime "Matched Journal 2 Client Data to Sheets"
     
     'Loop to reorder the client code tabs in numeric order
-    For b = 4 To w
-        For k = 4 To w - 1
+    For b = 4 To ThisWorkbook.Sheets.Count
+        For k = 4 To ThisWorkbook.Sheets.Count - 1
             If CInt(Sheets(k).Name) > CInt(Sheets(k + 1).Name) Then Sheets(k).Move after:=Sheets(k + 1)
         Next k
     Next b
@@ -527,7 +527,7 @@ Sub RingsJournalSort()
     'Search through Sheet1/Original for Jnlno
     'Loop up through the rows above until finding the cell which contains either sales or purchases ledger transfer
     'blank row above original jnlno, set it equal to the row containing Sales or Purchases Ledger Transfer
-    For k = 4 To w
+    For k = 4 To ThisWorkbook.Sheets.Count
     'k = 4
     
         With Sheets(k)
