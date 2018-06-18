@@ -52,7 +52,7 @@ Sub RingsJournalSort()
     ' Allocate variables
     Dim OrigSheet, JournalSheet1, JournalSheet2 As Worksheet
     Dim TempStr, TempDate, TempJnl() As String
-    Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, currentCol, b, c, d, i, j, k, m, n, newCode As Integer
+    Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, currentCol, b, c, d, numClientCodes1, j, k, m, n, newCode As Integer
     
     
     'opening, naming and setting worksheets to variables in case sheets are moved or named etc
@@ -250,14 +250,14 @@ Sub RingsJournalSort()
     
     '----Create a new tab for each client account code from Sheet 2
     'Loop to find the size of the array required
-    i = 0
+    numClientCodes1 = 0
     For b = 1 To numJournals1
         If IsDate(JournalSheet1.Cells(b, currentCol)) = False And IsEmpty(JournalSheet1.Cells(b, currentCol)) = False Then
-            i = i + 1
+            numClientCodes1 = numClientCodes1 + 1
         End If
     Next
     
-    ReDim Code(i)
+    ReDim Code(numClientCodes1)
     
     d = 0
     For b = 1 To numJournals1
@@ -279,12 +279,12 @@ Sub RingsJournalSort()
     'Loop to find the size of the array required maintaining the same increment variable and array
     For b = 1 To numJournals2
         If IsDate(JournalSheet1.Cells(b, currentCol)) = False And IsEmpty(JournalSheet1.Cells(b, currentCol)) = False Then
-            i = i + 1
+            numClientCodes1 = numClientCodes1 + 1
         End If
     Next
     
     'restating the new increased dimension of the array preserving it's contents
-    ReDim Preserve Code(i)
+    ReDim Preserve Code(numClientCodes1)
     
     'the same loop as previously, keeping the original array to check for duplicates
     For b = 1 To numJournals2
@@ -310,7 +310,7 @@ Sub RingsJournalSort()
     Dim JnlRow() As Variant
     Dim CodeRow(), CodeRow2(), u, LastRow As Integer
     Dim ShName
-    ReDim CodeRow(i)
+    ReDim CodeRow(numClientCodes1)
     
     d = 0
     'this creates an array containing the rows which have the client codes
@@ -531,29 +531,29 @@ Sub RingsJournalSort()
                     If InStr(Sheets(1).Cells(j, 1), "Journal") > 0 And InStr(Sheets(1).Cells(j, 1), CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", ""))) > 0 Then
                     'If InStr(Sheets(1).Cells(j, 1), CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", ""))) > 0 Then
                     'If InStr(Sheets(1).Cells(j, 1), Journal) = 1 Then
-                        i = 1
-                        i = j
+                        numClientCodes1 = 1
+                        numClientCodes1 = j
                         'Debug.Print (i)
                         
-                        For i = j To j - 70 Step -1
-                            If i = 0 Then
+                        For numClientCodes1 = j To j - 70 Step -1
+                            If numClientCodes1 = 0 Then
                                 Exit For
-                            ElseIf InStr(Sheets(1).Cells(i, 1), "Purchase Ledger Transfer Report") > 0 Then
+                            ElseIf InStr(Sheets(1).Cells(numClientCodes1, 1), "Purchase Ledger Transfer Report") > 0 Then
                                 Sheets(k).Cells(b + 1, 1) = "Purchase Ledger Transfer Report"
                                 'Debug.Print ("Purchase Ledger")
                                 'If CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", "")) = 241 Then Debug.Print (j)
                                 Exit For
-                            ElseIf InStr(Sheets(1).Cells(i, 1), "Sales Ledger Transfer Report") > 0 Then
+                            ElseIf InStr(Sheets(1).Cells(numClientCodes1, 1), "Sales Ledger Transfer Report") > 0 Then
                                 Sheets(k).Cells(b + 1, 1) = "Sales Ledger Transfer Report"
                                 'Debug.Print ("Sales Ledger")
                                 'If CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", "")) = 241 Then Debug.Print ("In Sales")
                                 Exit For
-                            ElseIf InStr(Sheets(1).Cells(i, 1), "Cash Book Transfer Report") > 0 Then
+                            ElseIf InStr(Sheets(1).Cells(numClientCodes1, 1), "Cash Book Transfer Report") > 0 Then
                                 Sheets(k).Cells(b + 1, 1) = "Cash Book Transfer Report"
                                 'Debug.Print ("Cash Book")
                                 Exit For
                             End If
-                        Next i
+                        Next numClientCodes1
                         
                     End If
                 Next j
