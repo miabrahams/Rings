@@ -1,6 +1,4 @@
 Public PerfCounter As New PerformanceCounter
-Public HotpathCounter As New PerformanceCounter
-
 
 
 
@@ -13,8 +11,8 @@ Function IsStringBetweenRows(StartRow As Integer, EndRow As Integer, ColNo As In
     Next i
 End Function
 
-Function IsContainedInArray(l As Integer, Arr As Variant) As Boolean
-    IsContainedInArray = UBound(Filter(Arr, l)) > -1
+Function IsContainedInArray(l As Integer, arr As Variant) As Boolean
+    IsContainedInArray = UBound(Filter(arr, l)) > -1
 End Function
 
 Function pprintMS(ByRef milliseconds As Double) As String
@@ -31,9 +29,9 @@ Function DBG_ElapsedTime(Optional additionalMessage As String = "")
     PerfCounter.StartCounter
 End Function
 
-' Returns a range string  "An:H(n+u)"
-Function rowBlock(ByVal firstRow As Integer, ByVal nRows As Integer) As String
-    rowBlock = "A" & firstRow & ":H" & (firstRow + nRows - 1)
+' Returns a range starting on row n of length u - i.e. "An:H(n+u-1)"
+Function rowBlock(ByVal n As Integer, ByVal u As Integer) As String
+    rowBlock = "A" & n & ":H" & (n + u - 1)
 End Function
 
 
@@ -178,7 +176,6 @@ Sub RingsJournalSort()
         z = z + 1
     Loop
     
-    DBG_ElapsedTime "Searched for journal entry numbers"
     Debug.Print ("Found numJournals1: " & numJournals1)
     Debug.Print ("Found numJournals2: " & numJournals2)
     
@@ -213,7 +210,6 @@ Sub RingsJournalSort()
         End If
     Next
     
-    DBG_ElapsedTime "Deleted Duplicate Journals"
     
     '----Using text to columns in Sheet 2
     For b = 1 To numJournals1
@@ -293,8 +289,6 @@ Sub RingsJournalSort()
         .Font.FontStyle = "Bold"
     End With
     
-    DBG_ElapsedTime "Text to Columns"
-    
     
     'Up to this point I've extracted and formatted each journal and the transactions within
     'now I want to gather for each client code the journals making up the total in seperate sheets
@@ -361,8 +355,8 @@ Sub RingsJournalSort()
         End If
     Next
     
-    DBG_ElapsedTime "Created Client Code Sheets"
     
+
     '----Tabs open for each client code
     '----Next Code to fill, format and tidy these tabs from JnlList1 and JnlList2
     '----The following is extracting from *JnlList1* 1)ClientCodes 2)Transactions 3)Jnl No.s
@@ -394,17 +388,11 @@ Sub RingsJournalSort()
             j = j + 1
         End If
     Next b
-    
-    DBG_ElapsedTime "Cleaned Client Code Sheets"
-    Dim Hotpaths(3) As Double
-    Hotpaths(0) = 0#
-    Hotpaths(1) = 0#
-    Hotpaths(2) = 0#
+
     
     'Search the list of Type 1 Journals for client codes.
     For k = 4 To ThisWorkbook.Sheets.Count
         ShName = CInt(Sheets(k).Name)
-        ' DBG_ElapsedTime "Matching Journal1 to Sheet " & ShName
         SheetLength(k) = 1 'Array in order to retain last row printed on for each sheet
         
         'loop through the array holding the row numbers of the rows with the client codes
@@ -413,7 +401,6 @@ Sub RingsJournalSort()
             'Check if the Client Code in a Row is equal to the current sheet looped onto
             If JournalSheet1.Cells(CodeRow(b), currentCol) = ShName Then
                 
-                HotpathCounter.StartCounter
                 ' Find the distance between the last row in the current set of transactions to the beginning of the next set
                 If b = UBound(CodeRow) Then
                     With JournalSheet1
@@ -424,17 +411,13 @@ Sub RingsJournalSort()
                 Else
                     u = CInt(CodeRow(b + 1)) - CInt(CodeRow(b))
                 End If
-                Hotpaths(0) = Hotpaths(0) + HotpathCounter.TimeElapsed
 
-                HotpathCounter.StartCounter
                 'Copy the journal entry found closest directly above this client code
                 Dim idx As Integer
                 idx = lastItemLessThanX(JnlRow, (CodeRow(b)))
                 Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet1.Range(rowBlock(JnlRow(idx), 1)).Value
                 SheetLength(k) = SheetLength(k) + 2
-                Hotpaths(1) = Hotpaths(1) + HotpathCounter.TimeElapsed
 
-                HotpathCounter.StartCounter
                 'this copies across the Client Code row plus the rows up to the next client code
                 'this is in order to catch the transactions beneath the code row
                 If CodeRow(b) + u - 1 = JnlRow(idx) Then
@@ -442,7 +425,6 @@ Sub RingsJournalSort()
                 End If
                 Sheets(k).Range(rowBlock((SheetLength(k)), u)).Value = JournalSheet1.Range(rowBlock((CodeRow(b)), u)).Value
                 SheetLength(k) = SheetLength(k) + u
-                Hotpaths(2) = Hotpaths(2) + HotpathCounter.TimeElapsed
             SheetLength(k) = SheetLength(k) + 1
             End If
         Next b
@@ -469,11 +451,6 @@ Sub RingsJournalSort()
     
         SheetLength(k) = SheetLength(k) + 2
     Next k
-    
-    DBG_ElapsedTime "Matched Journal 1 Client Data to Sheets"
-    For Each hp In Hotpaths
-        Debug.Print ("Hotpath: " & (pprintMS((hp))))
-    Next
     
     PerfCounter.StartCounter
 
@@ -552,7 +529,6 @@ Sub RingsJournalSort()
         
     Next k
     
-    DBG_ElapsedTime "Matched Journal 2 Client Data to Sheets"
     
     'Loop to reorder the client code tabs in numeric order
     For b = 4 To ThisWorkbook.Sheets.Count
@@ -561,7 +537,6 @@ Sub RingsJournalSort()
         Next k
     Next b
     
-    DBG_ElapsedTime "Reordered Client Code Tabs"
     
     'find the last row of the first sheet
     Dim FinalRow As Integer
@@ -641,8 +616,8 @@ Sub RingsJournalSort()
     'Next b
     exitPerfMode
     
-    DBG_ElapsedTime "Done done done"
-    MsgBox ("Completed :)")
+    DBG_ElapsedTime "Done!"
+    'MsgBox ("Completed :)")
     'MsgBox (InStr(Sheets(1).Cells(671, 1), "Journal"))
 
 End Sub
