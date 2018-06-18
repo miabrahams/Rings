@@ -31,6 +31,12 @@ Function DBG_ElapsedTime(Optional additionalMessage As String = "")
     PerfCounter.StartCounter
 End Function
 
+' Returns a range string  "An:H(n+u)"
+Function rowBlock(ByVal firstRow As Integer, ByVal nRows As Integer) As String
+    rowBlock = "A" & firstRow & ":H" & (firstRow + nRows - 1)
+End Function
+
+
 
 'Returns index of last item in arr less than x. Assumes array is sorted.
 Function lastItemLessThanX(ByRef arr() As Integer, x As Integer) As Integer
@@ -157,15 +163,15 @@ Sub RingsJournalSort()
                 '----This If Statement copies over the a/c name and client a/c code and the total and moves the total into column 3
                 If IsNumeric(OrigSheet.Cells(z, currentCol)) = True Then
                     currentCol = currentCol + 5 'just using this to shift which column output goes to
-                    OrigSheet.Cells(z, 1).Copy JournalSheet1.Cells(numJournals1, currentCol)
+                    JournalSheet1.Cells(numJournals1, currentCol).Value = OrigSheet.Cells(z, 1).Value
                     currentCol = currentCol - 5 'returning general output to initial column
                 Else
-                    OrigSheet.Cells(z, 1).Copy JournalSheet1.Cells(numJournals1, currentCol)
+                    JournalSheet1.Cells(numJournals1, currentCol).Value = OrigSheet.Cells(z, 1).Value
                 End If
 
             Else
                 numJournals2 = numJournals2 + 1
-                OrigSheet.Cells(z, currentCol).Copy JournalSheet2.Cells(numJournals2, currentCol)
+                JournalSheet2.Cells(numJournals2, currentCol).Value = OrigSheet.Cells(z, currentCol).Value
             End If
                                                  
         End If
@@ -421,12 +427,10 @@ Sub RingsJournalSort()
                 Hotpaths(0) = Hotpaths(0) + HotpathCounter.TimeElapsed
 
                 HotpathCounter.StartCounter
-
                 'Copy the journal entry found closest directly above this client code
                 Dim idx As Integer
                 idx = lastItemLessThanX(JnlRow, (CodeRow(b)))
-                JournalSheet1.Rows(JnlRow(idx)).Copy
-                Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
+                Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet1.Range(rowBlock(JnlRow(idx), 1)).Value
                 SheetLength(k) = SheetLength(k) + 2
                 Hotpaths(1) = Hotpaths(1) + HotpathCounter.TimeElapsed
 
@@ -436,8 +440,7 @@ Sub RingsJournalSort()
                 If CodeRow(b) + u - 1 = JnlRow(idx) Then
                     u = u - 1
                 End If
-                JournalSheet1.Rows(CodeRow(b) & ":" & (CodeRow(b) + u - 1)).Copy
-                Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
+                Sheets(k).Range(rowBlock((SheetLength(k)), u)).Value = JournalSheet1.Range(rowBlock((CodeRow(b)), u)).Value
                 SheetLength(k) = SheetLength(k) + u
                 Hotpaths(2) = Hotpaths(2) + HotpathCounter.TimeElapsed
             SheetLength(k) = SheetLength(k) + 1
@@ -512,18 +515,14 @@ Sub RingsJournalSort()
                 'if cell contains client code and is same as the current sheet then paste
                 'first the Row containing the Journal No.
                 If CInt(JournalSheet2.Cells(b, currentCol).Value) = ShName Then
-                    JournalSheet2.Rows(CurrentJnl).Copy
-                    Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
+                    Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet2.Range(rowBlock(CurrentJnl, 1)).Value
                     SheetLength(k) = SheetLength(k) + 2
                 End If
                 'second paste the row containing the client code and other information
-                JournalSheet2.Rows(b).Copy
-                Sheets(k).Rows(SheetLength(k)).PasteSpecial xlPasteAll
-                
+                Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet2.Range(rowBlock(b, 1)).Value
                 'These are just to allow me to print a total at the end of sheet
                 RunningTotal = RunningTotal + Sheets(k).Cells(SheetLength(k), 3)
                 RunningTotal2 = RunningTotal2 + Sheets(k).Cells(SheetLength(k), 4)
-    
                 SheetLength(k) = SheetLength(k) + 1
             End If
         Next b
