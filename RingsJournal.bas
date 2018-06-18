@@ -103,8 +103,9 @@ Sub RingsJournalSort()
     ' Allocate variables
     Dim SheetLength() As Integer
     Dim OrigSheet, JournalSheet1, JournalSheet2 As Worksheet
-    Dim TempStr, TempDate, TempJnl() As String
-    Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, currentCol, b, c, d, numClientCodes1, j, k, m, n, newCode As Integer
+    Dim TempJnl() As String
+    Dim startsWithID, startsWithDate As Boolean
+    Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, b, c, d, numClientCodes1, j, k, m, n, newCode As Integer
 
     
     'opening, naming and setting worksheets to variables in case sheets are moved or named etc
@@ -120,56 +121,48 @@ Sub RingsJournalSort()
     z = 1 'counter for rows in sheet 1 - Original
     numJournals1 = 0 'counter for rows in JnlList1
     numJournals2 = 0 'counter for rows in JnlList2
-    currentCol = 1 'Column Counter - SOME ISSUES WITH THIS DON'T CHANGE
     
-    
-    '----Seperate the and print out "Journal No. XXX" to either sheet 1 and 2
-    ' Sheet 1 is for "long" format journals, Sheet 2 for "short" format
+    ' Separate and print out "Journal No. XXX"
+    ' Journals come in two formats. Sheet 1 is for "long" format journals, Sheet 2 for "short" format
     'Loop End Condition - see if 3 consecutive rows are blank
-    Do While IsEmpty(OrigSheet.Cells(z, currentCol)) = False And IsEmpty(OrigSheet.Cells(z + 1, currentCol)) = False And IsEmpty(OrigSheet.Cells(z + 2, currentCol)) = False
+    Do While IsEmpty(OrigSheet.Cells(z, 1)) = False And IsEmpty(OrigSheet.Cells(z + 1, 1)) = False And IsEmpty(OrigSheet.Cells(z + 2, 1)) = False
+        Dim currentCell As Range
+        Set currentCell = OrigSheet.Cells(z, 1)
 
-        'Loop checks number of rows for which first 3 digits are numbers
-        'extracts first 3 characters of a row and sets as variable - will check if these are numeric
-        TempStr = Left(OrigSheet.Cells(z, currentCol), 3)
-        
-        'extracts first 8 characters of a row and sets as variable - will check if these are dates
-        TempDate = Left(OrigSheet.Cells(z, currentCol), 8)
+        'Check whether the row starts with a numeric value ID or a date
+        startsWithID = IsNumeric(Left(currentCell, 3))
+        startsWithDate = IsDate(Left(currentCell, 8))
                 
         'Find Cells which contain the word journal and extract the journal number which is set to JnlStr
-        JnlStr = Mid(OrigSheet.Cells(z, currentCol), InStr(OrigSheet.Cells(z, currentCol), "Journal") + 6 + 4, 6)
-     
-        currentCol = currentCol + 1 'Shifts column printed out to the right by 1
-        
-        'There happens to be a slightly different formatting for the sheets and I use this to differentiate
+        JnlStr = Mid(OrigSheet.Cells(z, 1), InStr(currentCell, "Journal") + 6 + 4, 6)
+
+        ' Construct a new journal string since journal types 1 and 2 have slightly different formatting
         If IsNumeric(JnlStr) = True And JnlStr > 100 Then
             numJournals2 = numJournals2 + 1
-            JournalSheet2.Cells(numJournals2, currentCol) = "Journal No. " & JnlStr
+            JournalSheet2.Cells(numJournals2, 2) = "Journal No. " & JnlStr
         ElseIf IsNumeric(JnlStr) = False And IsNumeric(Replace$(JnlStr, ".", "")) = True Then
             numJournals1 = numJournals1 + 1
-            JournalSheet1.Cells(numJournals1, currentCol) = "Journal No." & Replace$(JnlStr, ".", "")
+            JournalSheet1.Cells(numJournals1, 2) = "Journal No." & Replace$(JnlStr, ".", "")
         End If
-        currentCol = currentCol - 1 'Shifts column printed out to back left by 1
-                
+
         'Filtering out rows that don't begin with a number and which contain Co. name
-        If ((IsNumeric(TempStr) = True) Or (IsDate(TempDate) = True)) And (InStr(OrigSheet.Cells(z, currentCol), Left(OrigSheet.Cells(1, 1), 18)) = 0) Then
+        If (startsWithID Or startsWithDate) And (InStr(currentCell, Left(OrigSheet.Cells(1, 1), 18)) = 0) Then
             
             'seperating remaining items between two worksheets using string length without spaces
             'NOTE the number beside the < should represent the longest string that isn't a Jnl with Dr and Cr
-            If (Len(Replace$(OrigSheet.Cells(z, currentCol), " ", "")) < 35) Or (IsDate(TempDate) = True) Then
+            If (Len(Replace$(currentCell, " ", "")) < 35) Or (startsWithDate = True) Then
                 numJournals1 = numJournals1 + 1
 
                 '----This If Statement copies over the a/c name and client a/c code and the total and moves the total into column 3
-                If IsNumeric(OrigSheet.Cells(z, currentCol)) = True Then
-                    currentCol = currentCol + 5 'just using this to shift which column output goes to
-                    JournalSheet1.Cells(numJournals1, currentCol).Value = OrigSheet.Cells(z, 1).Value
-                    currentCol = currentCol - 5 'returning general output to initial column
+                If IsNumeric(currentCell) = True Then
+                    JournalSheet1.Cells(numJournals1, 6).Value = currentCell.Value
                 Else
-                    JournalSheet1.Cells(numJournals1, currentCol).Value = OrigSheet.Cells(z, 1).Value
+                    JournalSheet1.Cells(numJournals1, 1).Value = currentCell.Value
                 End If
 
             Else
                 numJournals2 = numJournals2 + 1
-                JournalSheet2.Cells(numJournals2, currentCol).Value = OrigSheet.Cells(z, currentCol).Value
+                JournalSheet2.Cells(numJournals2, 1).Value = currentCell.Value
             End If
                                                  
         End If
@@ -188,8 +181,8 @@ Sub RingsJournalSort()
     For b = 1 To numJournals1
         ReDim Preserve TempJnl(c)
 
-        If InStr(JournalSheet1.Cells(b, currentCol + 1), "Journal") Then
-            TempJnl(c) = JournalSheet1.Cells(b, currentCol + 1)
+        If InStr(JournalSheet1.Cells(b, 2), "Journal") Then
+            TempJnl(c) = JournalSheet1.Cells(b, 2)
             If TempJnl(c) = TempJnl(c - 1) Then
                 JournalSheet1.Rows(b).Delete
             End If
@@ -201,8 +194,8 @@ Sub RingsJournalSort()
     For b = 1 To numJournals2
         ReDim Preserve TempJnl(c)
         
-        If InStr(JournalSheet2.Cells(b, currentCol + 1), "Journal") Then
-            TempJnl(c) = JournalSheet2.Cells(b, currentCol + 1)
+        If InStr(JournalSheet2.Cells(b, 2), "Journal") Then
+            TempJnl(c) = JournalSheet2.Cells(b, 2)
             If TempJnl(c) = TempJnl(c - 1) Then
                 JournalSheet2.Rows(b).Delete
             End If
@@ -263,7 +256,7 @@ Sub RingsJournalSort()
     
     '----Using text to columns in Sheet 3
     For b = 1 To numJournals2
-        If IsEmpty(JournalSheet2.Cells(b, currentCol)) = False Then
+        If IsEmpty(JournalSheet2.Cells(b, 1)) = False Then
         JournalSheet2.Select
         Cells(b, currentCol).Select
         Selection.TextToColumns Destination:=JournalSheet1.Cells(b, currentCol), DataType:=xlFixedWidth, _
@@ -304,7 +297,7 @@ Sub RingsJournalSort()
     'Loop to find the size of the array required
     numClientCodes1 = 0
     For b = 1 To numJournals1
-        If IsDate(JournalSheet1.Cells(b, currentCol)) = False And IsEmpty(JournalSheet1.Cells(b, currentCol)) = False Then
+        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
             numClientCodes1 = numClientCodes1 + 1
         End If
     Next
@@ -313,8 +306,8 @@ Sub RingsJournalSort()
     
     d = 0
     For b = 1 To numJournals1
-        If IsDate(JournalSheet1.Cells(b, currentCol)) = False And IsEmpty(JournalSheet1.Cells(b, currentCol)) = False Then
-            newCode = JournalSheet1.Cells(b, currentCol).Value
+        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
+            newCode = JournalSheet1.Cells(b, 1).Value
             If IsContainedInArray(newCode, Code) = False Then
                 Code(d) = newCode
                 With ThisWorkbook
@@ -331,7 +324,7 @@ Sub RingsJournalSort()
     '----Create a new tab for each client account code from Sheet 3
     'Loop to find the size of the array required maintaining the same increment variable and array
     For b = 1 To numJournals2
-        If IsDate(JournalSheet1.Cells(b, currentCol)) = False And IsEmpty(JournalSheet1.Cells(b, currentCol)) = False Then
+        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
             numClientCodes1 = numClientCodes1 + 1
         End If
     Next
@@ -341,8 +334,8 @@ Sub RingsJournalSort()
     
     'the same loop as previously, keeping the original array to check for duplicates
     For b = 1 To numJournals2
-        If IsDate(JournalSheet2.Cells(b, currentCol)) = False And IsEmpty(JournalSheet2.Cells(b, currentCol)) = False And IsEmpty(Replace$(JournalSheet2.Cells(b, currentCol), " ", "")) Then
-            newCode = JournalSheet2.Cells(b, currentCol).Value
+        If IsDate(JournalSheet2.Cells(b, 1)) = False And IsEmpty(JournalSheet2.Cells(b, 1)) = False And IsEmpty(Replace$(JournalSheet2.Cells(b, 1), " ", "")) Then
+            newCode = JournalSheet2.Cells(b, 1).Value
             If IsContainedInArray(newCode, Code) = False Then
                 Code(d) = newCode
                 With ThisWorkbook
@@ -369,7 +362,7 @@ Sub RingsJournalSort()
     d = 0
     'this creates an array containing the rows which have the client codes
     For b = 1 To numJournals2 + numJournals1
-        If IsDate(JournalSheet1.Cells(b, currentCol)) = False And IsEmpty(JournalSheet1.Cells(b, currentCol)) = False Then
+        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
         ReDim Preserve CodeRow(d)
         CodeRow(d) = b
         d = d + 1
@@ -399,7 +392,7 @@ Sub RingsJournalSort()
         For b = 0 To UBound(CodeRow)
 
             'Check if the Client Code in a Row is equal to the current sheet looped onto
-            If JournalSheet1.Cells(CodeRow(b), currentCol) = ShName Then
+            If JournalSheet1.Cells(CodeRow(b), 1) = ShName Then
                 
                 ' Find the distance between the last row in the current set of transactions to the beginning of the next set
                 If b = UBound(CodeRow) Then
@@ -459,8 +452,8 @@ Sub RingsJournalSort()
     
     'this creates an array containing the rows which have the client codes
     d = 0
-    For b = 1 To numJournals2 + numJournals1
-        If IsEmpty(JournalSheet2.Cells(b, currentCol)) = False Then
+    For b = 1 To numJournals2
+        If IsEmpty(JournalSheet2.Cells(b, 1)) = False Then
         ReDim Preserve CodeRow2(d)
         CodeRow2(d) = b
         d = d + 1
@@ -482,16 +475,16 @@ Sub RingsJournalSort()
             ShName = CInt(Sheets(k).Name)
 
             'Check if Cells are empty if so save row no. to a temp variable
-            If IsEmpty(JournalSheet2.Cells(b, currentCol)) Then
+            If IsEmpty(JournalSheet2.Cells(b, 1)) Then
                 CurrentJnl = b
             End If
             
             'Check if the Client Code in a Row is equal to the current sheet looped onto
-            If JournalSheet2.Cells(b, currentCol) = ShName Then
+            If JournalSheet2.Cells(b, 1) = ShName Then
                 CheckifAnythingPasted = True
                 'if cell contains client code and is same as the current sheet then paste
                 'first the Row containing the Journal No.
-                If CInt(JournalSheet2.Cells(b, currentCol).Value) = ShName Then
+                If CInt(JournalSheet2.Cells(b, 1).Value) = ShName Then
                     Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet2.Range(rowBlock(CurrentJnl, 1)).Value
                     SheetLength(k) = SheetLength(k) + 2
                 End If
