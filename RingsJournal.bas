@@ -218,23 +218,29 @@ Sub RingsJournalSort()
         End If
     Next
     
-    
-    '----Using text to columns in Sheet 2
+
+    '----Text to columns for Journal List 1.
     For b = 1 To numJournals1
-        'Text to Columns for the longer lines of data
-        If IsDate(Left(JournalSheet1.Cells(b, currentCol), 8)) Then
-            JournalSheet1.Select
-            Cells(b, currentCol).Select
-            Selection.TextToColumns Destination:=JournalSheet1.Cells(b, currentCol), DataType:=xlFixedWidth, _
-            FieldInfo:=Array(Array(0, 4), Array(8, 1), Array(23, 1), Array(71, 1), Array(85, 1)), _
-            TrailingMinusNumbers:=True
-        'Text to columns for the Client Code and Name for Client Code so that it'll be easier to use just the Code as ref
-        ElseIf IsEmpty(JournalSheet1.Cells(b, currentCol)) = False Then
-            JournalSheet1.Select
-            Cells(b, currentCol).Select
-            Selection.TextToColumns Destination:=JournalSheet1.Cells(b, currentCol), DataType:=xlFixedWidth, _
-            FieldInfo:=Array(Array(0, 1), Array(3, 1)), _
-            TrailingMinusNumbers:=True '
+        JournalSheet1.Select
+        Cells(b, 1).Select
+        Set currentCell = JournalSheet1.Cells(b, 1)
+        ' Ordinary log entries. Identify these if they start with a date.
+        ' Excel will happily convert "152 004" to a date so make sure there is a forward slash
+        If ActuallyIsDate(currentCell.Value) Then
+            Selection.TextToColumns Destination:=currentCell, DataType:=xlFixedWidth, _
+                FieldInfo:=Array(Array(0, 4), Array(8, 2), Array(28, 2), Array(40, 1), Array(72, 1), _
+                Array(84, xlSkipColumn)), DataType:=standardDataType, TrailingMinusNumbers:=True
+            Cells(b, 2).Value = Trim(Cells(b, 2).Value)
+        'Columns with Client Code. These are not fixed width and may depend on the
+        ElseIf IsEmpty(currentCell) = False Then
+            ' Check for second set of three numbers like "123 001"
+            If IsNumeric(Mid(currentCell, 5, 3)) Then
+                Selection.TextToColumns Destination:=currentCell, DataType:=xlFixedWidth, _
+                    FieldInfo:=Array(Array(0, 1), Array(8, 2)), TrailingMinusNumbers:=True
+            Else
+                Selection.TextToColumns Destination:=currentCell, DataType:=xlFixedWidth, _
+                    FieldInfo:=Array(Array(0, 1), Array(4, 2)), TrailingMinusNumbers:=True
+            End If
         End If
     Next
     
@@ -255,13 +261,16 @@ Sub RingsJournalSort()
     JournalSheet1.Columns(1).ColumnWidth = 9.29
     JournalSheet1.Columns(2).ColumnWidth = 50
     
-    '----Using text to columns in Sheet 3
+
+
+    '----Text to columns for Journal List 2.
+    'Note these contain different columns, including debit and credit entries.
     For b = 1 To numJournals2
         If IsEmpty(JournalSheet2.Cells(b, 1)) = False Then
         JournalSheet2.Select
-        Cells(b, currentCol).Select
-        Selection.TextToColumns Destination:=JournalSheet1.Cells(b, currentCol), DataType:=xlFixedWidth, _
-            FieldInfo:=Array(Array(0, 1), Array(8, 1), Array(46, 1), Array(64, 1), Array(76, 1)), _
+        Cells(b, 1).Select
+        Selection.TextToColumns Destination:=JournalSheet1.Cells(b, 1), DataType:=xlFixedWidth, _
+            FieldInfo:=Array(Array(0, 1), Array(14, 2), Array(44, 1), Array(63, 1), Array(76, 2)), _
             TrailingMinusNumbers:=True
         End If
     Next
