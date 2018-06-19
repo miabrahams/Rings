@@ -21,7 +21,17 @@ Function pprintMS(ByRef milliseconds As Double) As String
     pprintMS = Format(milliseconds / 1000, "#0.00")
 End Function
 
+Function stripSpaces(ByVal S As String)
+    stripSpaces = Replace$(S, " ", "")
+End Function
 
+Function strippedToNum(ByVal S As String) As Long
+    strippedToNum = CLng(Replace$(stripSpaces(S), ".", ""))
+End Function
+
+Function ActuallyIsDate(S As String) As Boolean
+    ActuallyIsDate = IsDate(Left(S, 8)) And Mid(S, 3, 1) = "/"
+End Function
 
 Function DBG_ElapsedTime(Optional additionalMessage As String = "")
     If Len(additionalMessage) > 0 Then
@@ -154,12 +164,13 @@ Sub RingsJournalSort()
             
             'seperating remaining items between two worksheets using string length without spaces
             'NOTE the number beside the < should represent the longest string that isn't a Jnl with Dr and Cr
-            If (Len(Replace$(currentCell, " ", "")) < 35) Or (startsWithDate = True) Then
+            If (Len(stripSpaces(currentCell)) < 35) Or (startsWithDate = True) Then
                 numJournals1 = numJournals1 + 1
 
+                'XXX : CHECK
                 '----This If Statement copies over the a/c name and client a/c code and the total and moves the total into column 3
                 If IsNumeric(currentCell) = True Then
-                    JournalSheet1.Cells(numJournals1, 6).Value = currentCell.Value
+                    JournalSheet1.Cells(numJournals1, lastColumn).Value = currentCell.Value
                 Else
                     JournalSheet1.Cells(numJournals1, 1).Value = currentCell.Value
                 End If
@@ -178,7 +189,7 @@ Sub RingsJournalSort()
     
     
     c = 1
-    ReDim Preserve TempJnl(c)
+    ReDim TempJnl(c)
     TempJnl(0) = 100
 
     '----Deleting Duplicate Journal No. Rows on Sheet 2
@@ -228,35 +239,21 @@ Sub RingsJournalSort()
     Next
     
     
-    '----Formatting and Tidying of Sheet 2
-    JournalSheet1.Columns(5).Delete 'Delete column of irrelevant info
-    
-    'Autofit some columns
-    For b = 2 To 5
-    JournalSheet1.Columns(b).AutoFit
-    Next
-    
-    'Format a column of numbers
-    With JournalSheet1.Columns(4)
-    .NumberFormat = "#,###;(#,###);0"
-    End With
-    
-    'Format a column of numbers, made bold as they are totals
-    With JournalSheet1.Columns(5)
-    .NumberFormat = "#,###;(#,###);0"
-    '.Font.FontStyle = "Bold" 'Decided not to have them bold
-    End With
-    
-    'Borders on the column of numbers which are totals
+    ' Format Journal Sheet 1
+    JournalSheet1.Columns(lastColumn - 1).NumberFormat = "#,###;(#,###);0" ' Numerical entries
+
+    'Totals
+    JournalSheet1.Columns(lastColumn).NumberFormat = "#,###;(#,###);0"
     For b = 1 To numJournals1
-        If IsEmpty(JournalSheet1.Cells(b, 5)) = False Then
-            JournalSheet1.Cells(b, 5).Borders(xlEdgeBottom).LineStyle = xlContinuous
-            JournalSheet1.Cells(b, 5).Borders(xlEdgeTop).LineStyle = xlContinuous
+        If IsEmpty(JournalSheet1.Cells(b, lastColumn - 1)) = False Then
+            JournalSheet1.Cells(b, lastColumn - 1).Borders(xlEdgeBottom).LineStyle = xlContinuous
+            JournalSheet1.Cells(b, lastColumn - 1).Borders(xlEdgeTop).LineStyle = xlContinuous
         End If
     Next
-    
-    'One of the columns goes very wide with autofit so just widening to sufficient size
+
+    JournalSheet1.Columns("A:" & lastColumnLetter).AutoFit
     JournalSheet1.Columns(1).ColumnWidth = 9.29
+    JournalSheet1.Columns(2).ColumnWidth = 50
     
     '----Using text to columns in Sheet 3
     For b = 1 To numJournals2
@@ -270,11 +267,7 @@ Sub RingsJournalSort()
     Next
     
     
-    '----Formatting and tidying of Sheet 3
-    'AutoFit the column width
-    For b = 1 To 5
-    JournalSheet2.Columns(b).AutoFit
-    Next
+    ' Format Journal Sheet 2
     
     'Format two columns of numbers
     With JournalSheet2.Columns(3)
@@ -286,6 +279,8 @@ Sub RingsJournalSort()
         .Font.FontStyle = "Bold"
     End With
     
+    JournalSheet2.Columns("B:" & lastColumnLetter).AutoFit
+    JournalSheet2.Columns(1).ColumnWidth = 9.29
     
     'Up to this point I've extracted and formatted each journal and the transactions within
     'now I want to gather for each client code the journals making up the total in seperate sheets
@@ -372,16 +367,21 @@ Sub RingsJournalSort()
 
     
     'Search the list of Type 1 Journals for client codes.
+    Dim codeHasEntries As Boolean
+    JournalSheet1.Select
     For k = 4 To ThisWorkbook.Sheets.Count
-        ShName = CInt(Sheets(k).Name)
+        ShName = strippedToNum(Sheets(k).Name)
         SheetLength(k) = 1 'Array in order to retain last row printed on for each sheet
-        
+        codeHasEntries = False
+
         'loop through the array holding the row numbers of the rows with the client codes
         For b = 0 To UBound(CodeRow)
 
             'Check if the Client Code in a Row is equal to the current sheet looped onto
-            If JournalSheet1.Cells(CodeRow(b), 1) = ShName Then
+            If strippedToNum(JournalSheet1.Cells(CodeRow(b), 1)) = ShName Then
                 
+                codeHasEntries = True
+
                 ' Find the distance between the last row in the current set of transactions to the beginning of the next set
                 If b = UBound(CodeRow) Then
                     With JournalSheet1
@@ -396,7 +396,7 @@ Sub RingsJournalSort()
                 'Copy the journal entry found closest directly above this client code
                 Dim idx As Integer
                 idx = lastItemLessThanX(JnlRow, (CodeRow(b)))
-                Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet1.Range(rowBlock(JnlRow(idx), 1)).Value
+                Sheets(k).Cells(SheetLength(k), 2).Value = Trim(JournalSheet1.Cells(JnlRow(idx), 2).Value)
                 SheetLength(k) = SheetLength(k) + 2
 
                 'this copies across the Client Code row plus the rows up to the next client code
@@ -409,28 +409,30 @@ Sub RingsJournalSort()
             SheetLength(k) = SheetLength(k) + 1
             End If
         Next b
-        'autofit the columns in the client code sheets
-        For b = 1 To 8
-            Sheets(k).Columns(b).AutoFit
-            If b = 5 Or b = 4 Then Sheets(k).Columns(b).ColumnWidth = 10
-        Next b
         
-        'Putting a total of the totals moved over from Sheet 2
-        ' Could vectorize this
-        SheetLength(k) = SheetLength(k) + 1
-        For b = 1 To SheetLength(k) - 1
-            Sheets(k).Cells(SheetLength(k), 5) = Sheets(k).Cells(SheetLength(k), 5) + Sheets(k).Cells(b, 5)
-        Next b
-    
-        'Formatting this one cell
-        With Sheets(k).Cells(SheetLength(k), 5)
-            .NumberFormat = "#,###;(#,###);0"
-            .Font.FontStyle = "Bold"
-            .Borders(xlEdgeBottom).LineStyle = xlDouble
-            .Borders(xlEdgeTop).LineStyle = xlContinuous
-        End With
-    
-        SheetLength(k) = SheetLength(k) + 2
+        If codeHasEntries Then
+            'Putting a total of the totals moved over from Sheet 2
+            ' Could vectorize this
+            SheetLength(k) = SheetLength(k) + 1
+            For b = 1 To SheetLength(k) - 1
+                Sheets(k).Cells(SheetLength(k), 5) = Sheets(k).Cells(SheetLength(k), 5) + Sheets(k).Cells(b, 5)
+            Next b
+        
+            'Format total
+            'XXX: Should plug in an Excel formula for clarity
+            With Sheets(k).Cells(SheetLength(k), 5)
+                .NumberFormat = "#,###;(#,###);0"
+                .Font.FontStyle = "Bold"
+                .Borders(xlEdgeBottom).LineStyle = xlDouble
+                .Borders(xlEdgeTop).LineStyle = xlContinuous
+            End With
+            SheetLength(k) = SheetLength(k) + 5
+        End If
+
+        'autofit the columns in the client code sheets
+        Sheets(k).Columns("A:" & lastColumnLetter).AutoFit
+        Sheets(k).Columns(5).ColumnWidth = 10
+        Sheets(k).Columns(4).ColumnWidth = 10
     Next k
     
     PerfCounter.StartCounter
@@ -448,34 +450,30 @@ Sub RingsJournalSort()
         End If
     Next
     
+
     CurrentJnl = 1
     j = 1
     Dim RunningTotal, RunningTotal2 As Double
-    Dim CheckifAnythingPasted As Boolean
-    
+    JournalSheet2.Select
     For k = 4 To ThisWorkbook.Sheets.Count
     
-        CheckifAnythingPasted = False
+        ShName = strippedToNum(Sheets(k).Name)
+        codeHasEntries = False
         RunningTotal = 0
         RunningTotal2 = 0
         'loop through the array holding the row numbers of the rows with the client codes
-        For b = 4 To numJournals2
-            ShName = CInt(Sheets(k).Name)
-
+        For b = 1 To numJournals2
+            
             'Check if Cells are empty if so save row no. to a temp variable
             If IsEmpty(JournalSheet2.Cells(b, 1)) Then
                 CurrentJnl = b
-            End If
-            
             'Check if the Client Code in a Row is equal to the current sheet looped onto
-            If JournalSheet2.Cells(b, 1) = ShName Then
-                CheckifAnythingPasted = True
+            ElseIf strippedToNum(JournalSheet2.Cells(b, 1)) = ShName Then
+                codeHasEntries = True
                 'if cell contains client code and is same as the current sheet then paste
-                'first the Row containing the Journal No.
-                If CInt(JournalSheet2.Cells(b, 1).Value) = ShName Then
-                    Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet2.Range(rowBlock(CurrentJnl, 1)).Value
-                    SheetLength(k) = SheetLength(k) + 2
-                End If
+                'Copy the journal number
+                Sheets(k).Cells(SheetLength(k), 2).Value = Trim(JournalSheet2.Cells(CurrentJnl, 2).Value)
+                SheetLength(k) = SheetLength(k) + 2 ' Leave some room for the label!
                 'second paste the row containing the client code and other information
                 Sheets(k).Range(rowBlock(SheetLength(k), 1)).Value = JournalSheet2.Range(rowBlock(b, 1)).Value
                 'These are just to allow me to print a total at the end of sheet
@@ -484,7 +482,7 @@ Sub RingsJournalSort()
                 SheetLength(k) = SheetLength(k) + 1
             End If
         Next b
-        If CheckifAnythingPasted = True Then
+        If codeHasEntries Then
             SheetLength(k) = SheetLength(k) + 1
             Sheets(k).Cells(SheetLength(k), 3) = RunningTotal
             Sheets(k).Cells(SheetLength(k), 4) = RunningTotal2
@@ -503,10 +501,9 @@ Sub RingsJournalSort()
             End With
         End If
         'autofit the columns in the client code sheets
-        For b = 1 To 8
-            Sheets(k).Columns(b).AutoFit
-            If b = 5 Or b = 4 Then Sheets(k).Columns(b).ColumnWidth = 10
-        Next b
+        Sheets(k).Columns("A:" & lastColumnLetter).AutoFit
+        Sheets(k).Columns(5).ColumnWidth = 10
+        Sheets(k).Columns(4).ColumnWidth = 10
         
     Next k
     
