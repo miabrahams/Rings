@@ -344,19 +344,16 @@ Sub RingsJournalSort()
     
     'Cycle through the worksheets, match the sheet names to client codes, copy over the appropriate code rows and Journal No rows
     
-    For k = 1 To w
-    
-        v(k) = 1 'Array in order to retain last row printed on for each sheet
+    For k = 4 To ThisWorkbook.Sheets.Count
+        
+        ShName = CInt(Sheets(k).Name)
+        SheetLength(k) = 1 'Array in order to retain last row printed on for each sheet
         
       'loop through the array holding the row numbers of the rows with the client codes
         For b = 0 To UBound(CodeRow)
             
-        'excludes non numeric sheet names in order to ensure the correct sheets used
-            If IsNumeric(Sheets(k).Name) Then
-                ShName = CInt(Sheets(k).Name)
-            Else
-                ShName = 0
-            End If
+
+
         'Check if the Client Code in a Row is equal to the current sheet looped onto
             If JournalSheet1.Cells(CodeRow(b), currentCol) = ShName Then
         
@@ -437,20 +434,16 @@ Sub RingsJournalSort()
     Dim RunningTotal, RunningTotal2 As Double
     Dim CheckifAnythingPasted As Boolean
     
-    For k = 4 To w
+    For k = 4 To ThisWorkbook.Sheets.Count
     
         CheckifAnythingPasted = False
         RunningTotal = 0
         RunningTotal2 = 0
-      'loop through the array holding the row numbers of the rows with the client codes
-        For b = 1 To numJournals2
-        'excludes non numeric sheet names in order to ensure the correct sheets used
-            If IsNumeric(Sheets(k).Name) Then
-                ShName = CInt(Sheets(k).Name)
-            Else
-                ShName = 0
-            End If
-            
+        'loop through the array holding the row numbers of the rows with the client codes
+        For b = 4 To numJournals2
+            ShName = CInt(Sheets(k).Name)
+
+
             'Check if Cells are empty if so save row no. to a temp variable
             If IsEmpty(JournalSheet2.Cells(b, currentCol)) Then
                 CurrentJnl = b
