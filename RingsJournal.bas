@@ -1,7 +1,6 @@
 Public PerfCounter As New PerformanceCounter
 
 
-
 Function IsStringBetweenRows(StartRow As Integer, EndRow As Integer, ColNo As Integer, FindString As String) As Boolean
     IsStringBetweenRows = False
     For i = StartRow To EndRow
@@ -11,8 +10,11 @@ Function IsStringBetweenRows(StartRow As Integer, EndRow As Integer, ColNo As In
     Next i
 End Function
 
-Function IsContainedInArray(l As Integer, arr As Variant) As Boolean
-    IsContainedInArray = UBound(Filter(arr, l)) > -1
+Function IsContainedInArray(target As Variant, Arr As Variant) As Boolean
+    IsContainedInArray = False
+    For Each a In Arr
+        IsContainedInArray = IsContainedInArray Or (a = target)
+    Next
 End Function
 
 Function pprintMS(ByRef milliseconds As Double) As String
@@ -31,15 +33,14 @@ End Function
 
 ' Returns a range starting on row n of length u - i.e. "An:H(n+u-1)"
 Function rowBlock(ByVal n As Integer, ByVal u As Integer) As String
-    rowBlock = "A" & n & ":H" & (n + u - 1)
+    rowBlock = "A" & n & ":Z" & (n + u - 1)
 End Function
 
 
-
 'Returns index of last item in arr less than x. Assumes array is sorted.
-Function lastItemLessThanX(ByRef arr() As Integer, x As Integer) As Integer
+Function lastItemLessThanX(ByRef Arr() As Integer, x As Integer) As Integer
     idx = -1
-    For Each a In arr
+    For Each a In Arr
         If a < x Then
             idx = idx + 1
         Else
@@ -51,13 +52,13 @@ End Function
 
 
 'Remove every sheet but the first
-Function deleteExtraSheets()
+Sub deleteExtraSheets()
     Application.DisplayAlerts = False
     Do While Worksheets.Count > 1
         Worksheets(2).Delete
     Loop
     Application.DisplayAlerts = True
-End Function
+End Sub
 
 Sub xxx_Test()
     Dim arr_test(10) As Integer
@@ -72,16 +73,14 @@ Function enterPerfMode()
     Application.DisplayStatusBar = False
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
-    ActiveSheet.DisplayPageBreaks = False 'note this is a sheet-level setting
 End Function
 
-Function exitPerfMode()
+Sub exitPerfMode()
     Application.ScreenUpdating = True
     Application.DisplayStatusBar = True
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
-    ActiveSheet.DisplayPageBreaks = True 'note this is a sheet-level setting
-End Function
+End Sub
 
 
 
@@ -105,7 +104,7 @@ Sub RingsJournalSort()
     Dim OrigSheet, JournalSheet1, JournalSheet2 As Worksheet
     Dim TempJnl() As String
     Dim startsWithID, startsWithDate As Boolean
-    Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, b, c, d, numClientCodes1, j, k, m, n, newCode As Integer
+    Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, b, c, d, numClientCodes1, j, k, m, n As Integer
 
     
     'opening, naming and setting worksheets to variables in case sheets are moved or named etc
@@ -122,10 +121,12 @@ Sub RingsJournalSort()
     numJournals1 = 0 'counter for rows in JnlList1
     numJournals2 = 0 'counter for rows in JnlList2
     
-    ' Separate and print out "Journal No. XXX"
-    ' Journals come in two formats. Sheet 1 is for "long" format journals, Sheet 2 for "short" format
-    'Loop End Condition - see if 3 consecutive rows are blank
+    ' Separate and print out journal entries. Text is "Journal No. N"
+    ' Journals come in two formats. Sheet 1 is for "long" format journals, Sheet 2 for "short" format.
+    ' XXX: There is more logic to the way these journals are laid out that we're not taking advantage of.
+    ' It's like we have no idea whether to expect a customer code or a date or whatever, but it's actually not that crazy.
     Do While IsEmpty(OrigSheet.Cells(z, 1)) = False And IsEmpty(OrigSheet.Cells(z + 1, 1)) = False And IsEmpty(OrigSheet.Cells(z + 2, 1)) = False
+        'Loop End Condition - see if 3 consecutive rows are blank
         Dim currentCell As Range
         Set currentCell = OrigSheet.Cells(z, 1)
 
@@ -292,9 +293,7 @@ Sub RingsJournalSort()
     Dim FindOutArray() As String
     
 
-    ' TODO: Combine these loops into one by merging the array of codes first
-    '----Create a new tab for each client account code from Sheet 2
-    'Loop to find the size of the array required
+    '---- Sort client codes from Journal Sheet 1 and find unique values
     numClientCodes1 = 0
     For b = 1 To numJournals1
         If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
@@ -313,16 +312,12 @@ Sub RingsJournalSort()
                 With ThisWorkbook
                     Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
                     Sh.Name = newCode
-                    Sh.DisplayPageBreaks = False ' For performance
                 End With
-                d = d + 1
             End If
         End If
     Next
     
-    
-    '----Create a new tab for each client account code from Sheet 3
-    'Loop to find the size of the array required maintaining the same increment variable and array
+    '---- Sort client codes from Journal Sheet 2 and find unique values not already seen in Journal Sheet 1
     For b = 1 To numJournals2
         If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
             numClientCodes1 = numClientCodes1 + 1
@@ -341,7 +336,6 @@ Sub RingsJournalSort()
                 With ThisWorkbook
                     Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
                     Sh.Name = newCode
-                    Sh.DisplayPageBreaks = False ' For performance
                 End With
                 d = d + 1
             End If
@@ -454,9 +448,9 @@ Sub RingsJournalSort()
     d = 0
     For b = 1 To numJournals2
         If IsEmpty(JournalSheet2.Cells(b, 1)) = False Then
-        ReDim Preserve CodeRow2(d)
-        CodeRow2(d) = b
-        d = d + 1
+            ReDim Preserve CodeRow2(d)
+            CodeRow2(d) = b
+            d = d + 1
         End If
     Next
     
@@ -537,13 +531,7 @@ Sub RingsJournalSort()
         FinalRow = .Cells(.Rows.Count, 1).End(xlUp).Row
     End With
 
-    numJournals2 = 1
-    'The idea of this whole loop is to first cycle through the sheets
-    'then search through each sheet for a cell containing the word "Journal"
-    'then set that entire cell's string as JnlStr
-    'Search through Sheet1/Original for Jnlno
-    'Loop up through the rows above until finding the cell which contains either sales or purchases ledger transfer
-    'blank row above original jnlno, set it equal to the row containing Sales or Purchases Ledger Transfer
+    'Look back to search for "Sales Trasnfer Report", "Purchase Transfer Report" etc
     For k = 4 To ThisWorkbook.Sheets.Count
     
         With Sheets(k)
@@ -551,16 +539,11 @@ Sub RingsJournalSort()
         End With
     
         For b = 1 To LastRow
+            ' For each journal in each sheet search back through the source document
             If InStr(Sheets(k).Cells(b, 2), "Journal") = 1 Then
-                'JnlNo = CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", ""))
-                
-                ' i = 59 for every loop, this might mean that i is 59 coming into the this full loop and that it doesn't get through the if as
-                ' it might be taking JnlNo to literally mean JnlNo instead of what it represents
                 
                 For j = 1 To FinalRow
                     If InStr(Sheets(1).Cells(j, 1), "Journal") > 0 And InStr(Sheets(1).Cells(j, 1), CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", ""))) > 0 Then
-                    'If InStr(Sheets(1).Cells(j, 1), CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", ""))) > 0 Then
-                    'If InStr(Sheets(1).Cells(j, 1), Journal) = 1 Then
                         numClientCodes1 = 1
                         numClientCodes1 = j
                         'Debug.Print (i)
@@ -587,11 +570,7 @@ Sub RingsJournalSort()
                         
                     End If
                 Next j
-        
-                'Sheets(k).Cells(b + 1, 1) = Sheets(1).Cells(i, 1)
-                'Debug.Print (x)
-                'Debug.Print (CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", "")))
-                
+                Next
             End If
         Next b
     Next k
@@ -601,18 +580,9 @@ Sub RingsJournalSort()
     'Delete Working Sheets that may not be necessary but are useful to hang onto in case they are wanted or useful
     Application.DisplayAlerts = True
 
-    'For b = 1 To FinalRow
-    'call exitPerfMode
-    
-    'If InStr(Sheets(1).Cells(b, 1), "Purchase Ledger Transfer Report") > 0 Then Debug.Print (b)
-    'If InStr(Sheets(1).Cells(b, 1), "Sales Ledger Transfer Report") > 0 Then Debug.Print (b)
-    'Next b
     exitPerfMode
     
     DBG_ElapsedTime "Done!"
-    'MsgBox ("Completed :)")
-    'MsgBox (InStr(Sheets(1).Cells(671, 1), "Journal"))
-
 End Sub
 
 
