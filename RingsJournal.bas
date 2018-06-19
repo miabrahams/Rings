@@ -518,9 +518,10 @@ Sub RingsJournalSort()
     
     
     'Loop to reorder the client code tabs in numeric order
+    ' XXX: Rewrite this
     For b = 4 To ThisWorkbook.Sheets.Count
         For k = 4 To ThisWorkbook.Sheets.Count - 1
-            If CInt(Sheets(k).Name) > CInt(Sheets(k + 1).Name) Then Sheets(k).Move after:=Sheets(k + 1)
+            If strippedToNum(Sheets(k).Name) > strippedToNum(Sheets(k + 1).Name) Then Sheets(k).Move after:=Sheets(k + 1)
         Next k
     Next b
     
