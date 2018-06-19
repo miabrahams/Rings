@@ -119,6 +119,19 @@ Sub RingsJournalSort()
     Dim startsWithID, startsWithDate As Boolean
     Dim CurrentJnl, JnlNo, z, numJournals1, numJournals2, b, c, d, numClientCodes1, j, k, m, n As Integer
 
+    Const lastColumn = 6
+    Const lastColumnLetter = "F"
+
+    Dim ReportTypes As Variant
+    ReportTypes = Split("Sales Ledger Transfer Report;" & _
+                        "Purchase Ledger Transfer Report;" & _
+                        "Cash Book Transfer Report;" & _
+                        "Nominal Journal Posting", ";")
+
+
+    'XXX: Goal is to get all necessary information in one pass through the input.
+    ' Dict type structure for VBA:
+    ' Dim dict As New Scripting.Dictionary
     
     'opening, naming and setting worksheets to variables in case sheets are moved or named etc
     Set OrigSheet = Sheets(1)
@@ -532,7 +545,8 @@ Sub RingsJournalSort()
         FinalRow = .Cells(.Rows.Count, 1).End(xlUp).Row
     End With
 
-    'Look back to search for "Sales Trasnfer Report", "Purchase Transfer Report" etc
+    'Match journals with "Sales/Purchase Ledger Transfer Report"
+    ' We go through the original source document. Unfortunate and unnecessary!
     For k = 4 To ThisWorkbook.Sheets.Count
     
         With Sheets(k)
@@ -540,38 +554,26 @@ Sub RingsJournalSort()
         End With
     
         For b = 1 To LastRow
-            ' For each journal in each sheet search back through the source document
             If InStr(Sheets(k).Cells(b, 2), "Journal") = 1 Then
-                
+                ' Loop through sheets. When we locate a journal, begin search for category.
+                targetType = "Other"  ' Could set this to "" to disable
+                journalNum = strippedToNum(Right(Sheets(k).Cells(b, 2), 5))
                 For j = 1 To FinalRow
-                    If InStr(Sheets(1).Cells(j, 1), "Journal") > 0 And InStr(Sheets(1).Cells(j, 1), CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", ""))) > 0 Then
-                        numClientCodes1 = 1
-                        numClientCodes1 = j
-                        'Debug.Print (i)
-                        
-                        For numClientCodes1 = j To j - 70 Step -1
-                            If numClientCodes1 = 0 Then
-                                Exit For
-                            ElseIf InStr(Sheets(1).Cells(numClientCodes1, 1), "Purchase Ledger Transfer Report") > 0 Then
-                                Sheets(k).Cells(b + 1, 1) = "Purchase Ledger Transfer Report"
-                                'Debug.Print ("Purchase Ledger")
-                                'If CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", "")) = 241 Then Debug.Print (j)
-                                Exit For
-                            ElseIf InStr(Sheets(1).Cells(numClientCodes1, 1), "Sales Ledger Transfer Report") > 0 Then
-                                Sheets(k).Cells(b + 1, 1) = "Sales Ledger Transfer Report"
-                                'Debug.Print ("Sales Ledger")
-                                'If CInt(Replace$(Replace$(Right(Sheets(k).Cells(b, 2), 5), " ", ""), ".", "")) = 241 Then Debug.Print ("In Sales")
-                                Exit For
-                            ElseIf InStr(Sheets(1).Cells(numClientCodes1, 1), "Cash Book Transfer Report") > 0 Then
-                                Sheets(k).Cells(b + 1, 1) = "Cash Book Transfer Report"
-                                'Debug.Print ("Cash Book")
-                                Exit For
-                            End If
-                        Next numClientCodes1
-                        
+                    currentCell = Sheets(1).Cells(j, 1)
+                    If InStr(currentCell.Value, "Journal") And InStr(currentCell.Value, journalNum) Then
+                        For i = j To Application.Max(j - 70, 1) Step -1
+                            ' Each of the "Sales Ledger" type strings is in here
+                            For Each rt In ReportTypes
+                                If InStr(Sheets(1).Cells(i, 1).Value, rt) Then
+                                    targetType = rt
+                                    GoTo PostLabel ' Goto is horrible but better than the alternative
+                                End If
+                            Next
+                        Next
                     End If
-                Next j
                 Next
+PostLabel:
+                Sheets(k).Cells(b + 1, 1) = targetType
             End If
         Next b
     Next k
