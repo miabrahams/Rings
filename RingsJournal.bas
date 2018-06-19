@@ -36,6 +36,9 @@ Function rowBlock(ByVal n As Integer, ByVal u As Integer) As String
     rowBlock = "A" & n & ":Z" & (n + u - 1)
 End Function
 
+Function IsClientCode(cellValue As Variant) As Boolean
+    IsClientCode = (TypeName(cellValue) <> "Date") And (IsEmpty(cellValue) = False)
+End Function
 
 'Returns index of last item in arr less than x. Assumes array is sorted.
 Function lastItemLessThanX(ByRef Arr() As Integer, x As Integer) As Integer
@@ -289,26 +292,23 @@ Sub RingsJournalSort()
     
     
     Dim Sh As Worksheet
-    Dim Code() As Variant
+    Dim AllCodes() As Long
     Dim FindOutArray() As String
-    
+    Dim newCode As Long
+    ReDim AllCodes(0)
+    d = 0
 
     '---- Sort client codes from Journal Sheet 1 and find unique values
     numClientCodes1 = 0
     For b = 1 To numJournals1
-        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
+        Dim t As Boolean
+        If IsClientCode(JournalSheet1.Cells(b, 1).Value) Then
             numClientCodes1 = numClientCodes1 + 1
-        End If
-    Next
-    
-    ReDim Code(numClientCodes1)
-    
-    d = 0
-    For b = 1 To numJournals1
-        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
-            newCode = JournalSheet1.Cells(b, 1).Value
-            If IsContainedInArray(newCode, Code) = False Then
-                Code(d) = newCode
+            newCode = strippedToNum(JournalSheet1.Cells(b, 1).Value)
+            If IsContainedInArray(newCode, AllCodes) = False Then
+                d = d + 1
+                ReDim Preserve AllCodes(d)
+                AllCodes(d) = newCode
                 With ThisWorkbook
                     Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
                     Sh.Name = newCode
@@ -318,21 +318,15 @@ Sub RingsJournalSort()
     Next
     
     '---- Sort client codes from Journal Sheet 2 and find unique values not already seen in Journal Sheet 1
+    numClientCodes2 = 0
     For b = 1 To numJournals2
-        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
-            numClientCodes1 = numClientCodes1 + 1
-        End If
-    Next
-    
-    'restating the new increased dimension of the array preserving it's contents
-    ReDim Preserve Code(numClientCodes1)
-    
-    'the same loop as previously, keeping the original array to check for duplicates
-    For b = 1 To numJournals2
-        If IsDate(JournalSheet2.Cells(b, 1)) = False And IsEmpty(JournalSheet2.Cells(b, 1)) = False And IsEmpty(Replace$(JournalSheet2.Cells(b, 1), " ", "")) Then
-            newCode = JournalSheet2.Cells(b, 1).Value
-            If IsContainedInArray(newCode, Code) = False Then
-                Code(d) = newCode
+        If IsClientCode(JournalSheet2.Cells(b, 1).Value) Then
+            numClientCodes2 = numClientCodes2 + 1
+            newCode = strippedToNum(JournalSheet2.Cells(b, 1))
+            If IsContainedInArray(newCode, AllCodes) = False Then
+                d = d + 1
+                ReDim Preserve AllCodes(d)
+                AllCodes(d) = newCode
                 With ThisWorkbook
                     Set Sh = .Sheets.Add(after:=.Sheets(.Sheets.Count))
                     Sh.Name = newCode
@@ -350,16 +344,16 @@ Sub RingsJournalSort()
     
     Dim JnlRow() As Integer
     Dim CodeRow(), CodeRow2(), u, LastRow As Integer
-    Dim ShName As Integer
+    Dim ShName As Double
     ReDim CodeRow(numClientCodes1)
     
+    'Reverse lookup rows with client codes (XXX: Probably should move this up?)
     d = 0
-    'this creates an array containing the rows which have the client codes
-    For b = 1 To numJournals2 + numJournals1
-        If IsDate(JournalSheet1.Cells(b, 1)) = False And IsEmpty(JournalSheet1.Cells(b, 1)) = False Then
-        ReDim Preserve CodeRow(d)
-        CodeRow(d) = b
-        d = d + 1
+    For b = 1 To numJournals1
+        If IsClientCode(JournalSheet1.Cells(b, 1).Value) Then
+            ReDim Preserve CodeRow(d)
+            CodeRow(d) = b
+            d = d + 1
         End If
     Next
     
